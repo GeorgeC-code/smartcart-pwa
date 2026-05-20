@@ -17,7 +17,7 @@ jobs:
 
       - name: Build Android App
         id: build-pwa
-        uses: pwa-builder/pwabuilder-android-apk-action@v1.0.1
+        uses: pwabuilder/pwabuilder-android-apk-action@v1.0.1
         with:
           # Your live PWA URL where the manifest & assets are hosted
           pwa-url: "https://ais-pre-c5z5oueuzt7qs567xwy62y-315456203743.europe-west1.run.app"
@@ -26,7 +26,7 @@ jobs:
           # App name in application lists and launchers
           android-app-name: "SmartCart"
           # Optional custom configuration (PWABuilder default options are used if empty)
-          # See: https://github.com/pwa-builder/pwabuilder-android-apk-action for full specs
+          # See: https://github.com/pwabuilder/pwabuilder-android-apk-action for full specs
 
       - name: Upload APK & AAB Packages
         uses: actions/upload-artifact@v4
