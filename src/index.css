@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  
+  /* Japanese Pastel Palette */
+  --color-indigo-50: #F9F7F2;   /* Washi Paper */
+  --color-indigo-100: #FCE4EC;  /* Sakura Light */
+  --color-indigo-200: #FFB7C5;  /* Sakura */
+  --color-indigo-500: #E57373;  /* Soft Red */
+  --color-indigo-600: #D32F2F;  /* Japanese Red */
+  --color-indigo-700: #B71C1C;  /* Dark Red */
+  --color-indigo-900: #2D3436;  /* Sumi */
+
+  --color-slate-50: #F9F7F2;    /* Washi Paper */
+  --color-slate-100: #F0EAD6;   /* Eggshell */
+  --color-slate-200: #E0D8C0;   /* Muted Sand */
+  --color-slate-400: #A8A090;   /* Muted Stone */
+  --color-slate-500: #807868;   /* Stone */
+  --color-slate-600: #605848;   /* Dark Stone */
+  --color-slate-900: #2D3436;   /* Sumi */
+
+  --color-emerald-100: #E8F5E9; /* Matcha Light */
+  --color-emerald-500: #A8C69F; /* Matcha */
+  --color-emerald-600: #8BA882; /* Deep Matcha */
+  
+  --color-rose-50: #FFF5F7;    /* Sakura Very Light */
+  --color-rose-100: #FCE4EC;   /* Sakura Light */
+  --color-rose-500: #F06292;   /* Sakura */
+  --color-rose-600: #E91E63;   /* Strong Sakura */
+  
+  @keyframes shake {
+    0%, 100% { transform: translateX(-50%) translateX(0); }
+    25% { transform: translateX(-50%) translateX(-4px); }
+    75% { transform: translateX(-50%) translateX(4px); }
+  }
+  --animate-shake: shake 0.2s ease-in-out 0s 2;
+}
+
+@layer base {
+  body {
+    @apply bg-indigo-50 text-slate-900 font-sans antialiased;
+  }
+}
