@@ -17,7 +17,7 @@ jobs:
 
       - name: Build Android App
         id: build-pwa
-        uses: pwa-builder/pwabuilder-google-play@v1
+        uses: pwa-builder/pwabuilder-google-play@main
         with:
           # Your live PWA URL where the manifest & assets are hosted
           pwa-url: "https://ais-pre-c5z5oueuzt7qs567xwy62y-315456203743.europe-west1.run.app"
