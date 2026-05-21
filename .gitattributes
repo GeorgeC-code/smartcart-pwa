@@ -1,0 +1,17 @@
+# Treat all image and binary formats as binary to prevent Git text/line-ending corruption
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.cur binary
+
+# Treat SVG and web configurations as text
+*.svg text
+*.json text
+*.html text
+*.css text
+*.js text
+*.ts text
+*.tsx text
