@@ -31,25 +31,25 @@ export default defineConfig(({mode}) => {
           categories: ["utilities", "shopping", "finance"],
           icons: [
             {
-              src: 'icon-192.png',
+              src: '/icon-192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'icon-192-maskable.png',
+              src: '/icon-192-maskable.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'maskable'
             },
             {
-              src: 'icon-512.png',
+              src: '/icon-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'icon-512.png',
+              src: '/icon-512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
@@ -57,7 +57,7 @@ export default defineConfig(({mode}) => {
           ],
           screenshots: [
             {
-              src: 'screenshot.jpg',
+              src: '/screenshot.jpg',
               sizes: '768x1376',
               type: 'image/jpeg',
               form_factor: 'narrow',
@@ -71,8 +71,8 @@ export default defineConfig(({mode}) => {
               description: 'Quickly log a new grocery item',
               url: '/?add=true',
               icons: [
-                { src: 'icon-96.png', sizes: '96x96', type: 'image/png' },
-                { src: 'icon-192.png', sizes: '192x192', type: 'image/png' }
+                { src: '/icon-96.png', sizes: '96x96', type: 'image/png' },
+                { src: '/icon-192.png', sizes: '192x192', type: 'image/png' }
               ]
             },
             {
@@ -81,8 +81,8 @@ export default defineConfig(({mode}) => {
               description: 'Check your remaining shopping funds',
               url: '/?view=budget',
               icons: [
-                { src: 'icon-96.png', sizes: '96x96', type: 'image/png' },
-                { src: 'icon-192.png', sizes: '192x192', type: 'image/png' }
+                { src: '/icon-96.png', sizes: '96x96', type: 'image/png' },
+                { src: '/icon-192.png', sizes: '192x192', type: 'image/png' }
               ]
             }
           ]
