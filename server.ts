@@ -3,6 +3,20 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
+import { GoogleGenAI } from "@google/genai";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+// Create Gemini client server-side
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
 
 // Safe __dirname equivalent that handles both ESM (dev) and CommonJS (prod)
 const _dirname = typeof __dirname !== 'undefined' 
@@ -111,9 +125,238 @@ async function startServer() {
     });
   });
 
+  // Enable high-limit body parser for base64 uploads (APKs)
+  app.use(express.json({ limit: "150mb" }));
+  app.use(express.urlencoded({ limit: "150mb", extended: true }));
+
+  // Serve static .apk files directly with correct MIME types
+  app.get("/:filename.apk", (req, res, next) => {
+    const filename = req.params.filename + ".apk";
+    const pathsToTry = [
+      path.resolve(process.cwd(), 'dist', filename),
+      path.resolve(process.cwd(), 'public', filename),
+      path.resolve(_dirname, filename),
+    ];
+    
+    let found = false;
+    for (const p of pathsToTry) {
+      if (fs.existsSync(p)) {
+        res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+        // Let it serve inline so web crawlers and APK scrapers can download it programmatically with ease
+        res.sendFile(p);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      next();
+    }
+  });
+
+  // API to handle APK file uploads
+  app.post("/api/upload-apk", (req, res) => {
+    try {
+      const { base64, filename } = req.body;
+      if (!base64 || !filename) {
+        return res.status(400).json({ error: "Missing base64 or filename data" });
+      }
+
+      if (!filename.endsWith(".apk")) {
+        return res.status(400).json({ error: "Only .apk files are allowed" });
+      }
+
+      const cleanFilename = path.basename(filename);
+      const base64Data = base64.replace(/^data:.*?;base64,/, "");
+      const buffer = Buffer.from(base64Data, "base64");
+
+      // Write to public/
+      const publicPath = path.resolve(process.cwd(), "public");
+      if (!fs.existsSync(publicPath)) {
+        fs.mkdirSync(publicPath, { recursive: true });
+      }
+      fs.writeFileSync(path.join(publicPath, cleanFilename), buffer);
+      console.log(`Successfully saved APK to public directory: ${path.join(publicPath, cleanFilename)}`);
+
+      // Write to dist/ immediately to avoid any sync lag in production containers
+      const distPath = path.resolve(process.cwd(), "dist");
+      if (fs.existsSync(distPath)) {
+        fs.writeFileSync(path.join(distPath, cleanFilename), buffer);
+        console.log(`Successfully saved APK to dist directory: ${path.join(distPath, cleanFilename)}`);
+      }
+
+      return res.json({ 
+        success: true, 
+        message: "APK file uploaded successfully!",
+        filename: cleanFilename,
+        url: `/${cleanFilename}`
+      });
+    } catch (err: any) {
+      console.error("APK upload error:", err);
+      return res.status(500).json({ error: err.message || "Failed to save APK file" });
+    }
+  });
+
+  // API to list uploaded APK files
+  app.get("/api/uploaded-apks", (req, res) => {
+    try {
+      const apks: string[] = [];
+      const searchDirs = [
+        path.resolve(process.cwd(), "public"),
+        path.resolve(process.cwd(), "dist")
+      ];
+      searchDirs.forEach(dir => {
+        if (fs.existsSync(dir)) {
+          const files = fs.readdirSync(dir);
+          files.forEach(f => {
+            if (f.endsWith(".apk") && !apks.includes(f)) {
+              apks.push(f);
+            }
+          });
+        }
+      });
+      return res.json({ apks });
+    } catch (err) {
+      return res.status(500).json({ error: "Failed to list APKs" });
+    }
+  });
+
+  // API chat helper endpoint with Gemini
+  app.post("/api/helper/chat", async (req, res) => {
+    try {
+      const { message, country, holiday, history } = req.body;
+      
+      const systemInstruction = `You are a helpful, smart, and friendly AI Assistant called "Expat Holiday Companion".
+Your user is an international tourist, traveler, or expat who recently moved to or is traveling in a foreign country (especially Serbia, Hungary, Spain, or Germany).
+Your goal is to answer queries in English with precise, practical details about national holidays, business/shop shutdowns, grocery store closure status, public transits, local traditions, and essential expat/tourist survival tips.
+Always reply in English. When providing congratulatory phrases or expressions in the target language (Serbian, Magyar, Spanish, German, etc.), format them clearly with:
+1. The exact phrasing in the native language (e.g. "Srećna Nova godina!")
+2. The phonetic pronunciation (e.g. "Sréch-na Nó-va gó-di-na!")
+3. The English translation (e.g. "Happy New Year!")
+Keep your answers highly readable, structured, and action-oriented. Suggest pre-holiday checklists (such as picking up extra milk/bread, pulling cash from ATMs, and checking post hours) before a shutdown occurs. Always maintain a warm, welcoming, and reassuring expert persona.`;
+
+      const contents = [];
+      if (history && Array.isArray(history)) {
+        for (const h of history) {
+          contents.push({
+            role: h.role,
+            parts: [{ text: h.text }]
+          });
+        }
+      }
+      
+      const contextPrompt = `Context: Selected Country: ${country || "Not specified"}. ${holiday ? `Associated Holiday: ${holiday}.` : ""}
+User query: ${message}`;
+      
+      contents.push({
+        role: "user",
+        parts: [{ text: contextPrompt }]
+      });
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: contents,
+        config: {
+          systemInstruction: systemInstruction,
+          temperature: 0.7,
+        }
+      });
+
+      res.json({ text: response.text });
+    } catch (error: any) {
+      console.error("Gemini API Error in helper chat:", error);
+      res.status(500).json({ error: error.message || "Failed to communicate with Expat Gemini assistant." });
+    }
+  });
+
   // 2. Health check
   app.get("/health", (req, res) => {
-    res.send("SmartCart Server is Running");
+    res.send("Expat Holiday Helper Server is Running");
+  });
+
+  // Privacy Policy Route (Required for Play Store / Aptoide Verification)
+  app.get("/privacy", (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - SmartCart: Budget Grocery List</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #1A1513;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 24px;
+            background-color: #FAF8F5;
+        }
+        h1, h2, h3 {
+            color: #1A1513;
+            font-weight: 800;
+        }
+        h1 {
+            border-bottom: 2px solid #E6DEC9;
+            padding-bottom: 12px;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        h2 {
+            font-size: 20px;
+            margin-top: 28px;
+            border-bottom: 1px solid #E6DEC9/40;
+            padding-bottom: 6px;
+        }
+        p, li {
+            font-size: 15px;
+            color: #4A4543;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 24px;
+            border: 1px solid #E6DEC9;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        }
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #A19885;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Privacy Policy for SmartCart: Budget Grocery List</h1>
+        <p><em>Last updated: June 13, 2026</em></p>
+        
+        <p>SmartCart built the <strong>SmartCart: Budget Grocery List</strong> app as a Free app. This SERVICE is provided at no cost and is intended for use as is.</p>
+        
+        <h2>1. Information Collection and Use</h2>
+        <p>All data entered into <strong>SmartCart: Budget Grocery List</strong>, including grocery lists, items, and calculated prices, is stored <strong>locally on your mobile device</strong> using secure local browser database structures (LocalStorage/IndexedDB).</p>
+        <p><strong>We do NOT collect, transmit, store, or share any personal data, location data, or list contents on our servers.</strong> Every detail is entered manually by the user, and your grocery data never leaves your device unless you explicitly express intent to export it (e.g., exporting lists as CSV files).</p>
+
+        <h2>2. Device Permissions</h2>
+        <p>This application does not request, require, or access any sensitive device permissions (such as camera, microphone, contacts, location, or photo library). All application workflows operate perfectly without any external permissions.</p>
+
+        <h2>3. Third-Party Services</h2>
+        <p>The application is designed to be fully self-contained. It does not integrate tracking analytics, SDK advertising networks, or other personal tracking systems that gather data about user interactions.</p>
+
+        <h2>4. Contact Us</h2>
+        <p>If you have any questions or suggestions about our Privacy Policy, do not hesitate to contact us at <strong>iseerhinoceros@gmail.com</strong>.</p>
+    </div>
+    <footer>
+        &copy; 2026 SmartCart. All rights reserved.
+    </footer>
+</body>
+</html>
+    `);
   });
 
   // 3. Setup paths based on environment
@@ -144,24 +387,6 @@ async function startServer() {
       dotfiles: "allow",
       index: false // Don't serve index.html here, we handle it in the fallback
     }));
-
-    // Privacy Policy Route (Required for Play Store)
-    app.get("/privacy", (req, res) => {
-      res.send(`
-        <html>
-          <head><title>Privacy Policy - SmartCart</title></head>
-          <body style="font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6;">
-            <h1>Privacy Policy</h1>
-            <p>SmartCart built the SmartCart app as a Free app. This SERVICE is provided by SmartCart at no cost and is intended for use as is.</p>
-            <p>This page is used to inform visitors regarding our policies with the collection, use, and disclosure of Personal Information if anyone decided to use our Service.</p>
-            <p><strong>Information Collection and Use</strong></p>
-            <p>All data entered into SmartCart is stored locally on your device. We do not collect, store, or share any personal data on our servers.</p>
-            <p><strong>Security</strong></p>
-            <p>We value your trust in providing us your Personal Information, thus we are striving to use commercially acceptable means of protecting it. But remember that no method of transmission over the internet, or method of electronic storage is 100% secure and reliable, and we cannot guarantee its absolute security.</p>
-          </body>
-        </html>
-      `);
-    });
 
     // Handle SPA fallback
     app.get("*", (req, res, next) => {

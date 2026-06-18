@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.smartcart.app",
+      "package_name": "com.smartcart.pwa",
       "sha256_cert_fingerprints": [
-        "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"
+        "37:FB:83:46:25:5F:C7:62:93:0E:26:33:22:E3:67:CA:7E:50:21:27:1D:86:E7:5B:99:83:A3:7F:E6:D4:44:E7"
       ]
     }
   }

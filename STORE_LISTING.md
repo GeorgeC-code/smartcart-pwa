@@ -11,12 +11,11 @@ SmartCart is your ultimate companion for grocery shopping and budget management.
 
 **Key Features:**
 - **Real-Time Budgeting:** See exactly how much you're spending as you add items to your cart.
-- **Premium Experience:** Enjoy an ad-free experience with our symbolic $1.99 one-time upgrade.
+- **Premium Experience:** Enjoy an ad-free experience with our symbolic 2 USD one-time upgrade.
 - **Privacy First:** Your data never leaves your device. No cloud indexing, no tracking—just your shopping.
 - **Smart Statistics:** Visualize your spending habits with detailed charts and historical data.
 - **Multi-Language Support:** Available in English, German (Deutsch), Spanish (Español), and Russian (Русский).
 - **Haptic Feedback:** Experience micro-vibrations for a more intuitive tactile experience.
-- **Currency Support:** Automatically handles your local currency settings.
 
 **Why Choose SmartCart?**
 Unlike other apps, SmartCart is built on top of a philosophy of simplicity and security. We don't store your data on servers, and we don't track your behavior. It's just a powerful, beautiful tool to help you save money and shop smarter.

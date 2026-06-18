@@ -1,20 +1,26 @@
+export type Language = 'en' | 'de' | 'es' | 'ru';
+
 export interface CartItem {
   id: string;
   name: string;
   price: number;
   quantity: number;
-  timestamp: number;
+  unit: 'each' | 'kg';
+  completed: boolean;
 }
 
-export interface ShoppingSession {
+export interface ShoppingTrip {
   id: string;
-  date: string;
-  total: number;
+  date: string; // ISO / Date string
+  storeName: string;
   items: CartItem[];
-  storeName?: string;
+  total: number;
+  budgetAtTrip: number;
 }
 
-export interface AppState {
+export interface Settings {
   budget: number;
-  history: ShoppingSession[];
+  soundEnabled: boolean;
+  isPremium: boolean;
+  language: Language;
 }

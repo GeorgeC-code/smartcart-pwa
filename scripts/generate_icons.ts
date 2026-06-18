@@ -168,6 +168,11 @@ async function main() {
   await circular96.write('public/icon-96.png');
   console.log('Saved public/icon-96.png');
   
+  // Resize to 114x114 (For Amazon Appstore precise requirement)
+  const circular114 = circular512.clone().resize({ w: 114, h: 114 });
+  await circular114.write('public/icon-114.png');
+  console.log('Saved public/icon-114.png');
+  
   // 2. Generate Square Maskable 512x512 Icon
   const maskable512 = new Jimp({ width: 512, height: 512, color: CORAL_COLOR });
   
