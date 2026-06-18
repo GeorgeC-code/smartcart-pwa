@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   ShoppingCart, 
   Plus, 
@@ -91,9 +91,13 @@ export default function App() {
   });
 
   // --- UI Interactive States ---
-  const [formData, setFormData] = useState({
-    name: '',
-    price: ''
+  const [formData, setFormData] = useState<{ name: string; price: string }>(() => {
+    try {
+      const saved = localStorage.getItem('smartcart_form_data');
+      return saved ? JSON.parse(saved) : { name: '', price: '' };
+    } catch {
+      return { name: '', price: '' };
+    }
   });
 
   const [isAdding, setIsAdding] = useState(false);
@@ -103,24 +107,52 @@ export default function App() {
 
   // Modal and custom sheet controls
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
-  const [isStorePopupOpen, setIsStorePopupOpen] = useState(false);
+  const [isStorePopupOpen, setIsStorePopupOpen] = useState(() => {
+    return localStorage.getItem('smartcart_is_store_popup_open') === 'true';
+  });
   const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<CartItem | null>(null);
+  
+  const [editingItem, setEditingItem] = useState<CartItem | null>(() => {
+    try {
+      const saved = localStorage.getItem('smartcart_editing_item');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [selectedTrip, setSelectedTrip] = useState<ShoppingTrip | null>(null);
   
   // Custom states
   const [activationCode, setActivationCode] = useState('');
   const [activationError, setActivationError] = useState('');
   const [showCheckoutSuccess, setShowCheckoutSuccess] = useState(false);
-  const [storeInput, setStoreInput] = useState('');
+  const [storeInput, setStoreInput] = useState(() => {
+    return localStorage.getItem('smartcart_store_input') || '';
+  });
 
   // States for custom quantity popup workflow
-  const [pendingItemToAdd, setPendingItemToAdd] = useState<{ name: string; price: number } | null>(null);
-  const [pendingQuantity, setPendingQuantity] = useState<number>(1);
-  const [pendingUnit, setPendingUnit] = useState<'each' | 'kg'>('each');
-  const [quantityInputStr, setQuantityInputStr] = useState<string>('1');
-  const [isQuantityModified, setIsQuantityModified] = useState<boolean>(false);
+  const [pendingItemToAdd, setPendingItemToAdd] = useState<{ name: string; price: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem('smartcart_pending_item');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [pendingQuantity, setPendingQuantity] = useState<number>(() => {
+    const saved = localStorage.getItem('smartcart_pending_quantity');
+    return saved ? parseFloat(saved) : 1;
+  });
+  const [pendingUnit, setPendingUnit] = useState<'each' | 'kg'>(() => {
+    return (localStorage.getItem('smartcart_pending_unit') as 'each' | 'kg') || 'each';
+  });
+  const [quantityInputStr, setQuantityInputStr] = useState<string>(() => {
+    return localStorage.getItem('smartcart_quantity_input_str') || '1';
+  });
+  const [isQuantityModified, setIsQuantityModified] = useState<boolean>(() => {
+    return localStorage.getItem('smartcart_is_quantity_modified') === 'true';
+  });
 
   // States for virtual keypad
   const [activeInput, setActiveInput] = useState<{
@@ -161,6 +193,174 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('smartcart_active_tab', activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('smartcart_form_data', JSON.stringify(formData));
+  }, [formData]);
+
+  useEffect(() => {
+    localStorage.setItem('smartcart_is_store_popup_open', isStorePopupOpen ? 'true' : 'false');
+  }, [isStorePopupOpen]);
+
+  useEffect(() => {
+    if (editingItem) {
+      localStorage.setItem('smartcart_editing_item', JSON.stringify(editingItem));
+    } else {
+      localStorage.removeItem('smartcart_editing_item');
+    }
+  }, [editingItem]);
+
+  useEffect(() => {
+    localStorage.setItem('smartcart_store_input', storeInput);
+  }, [storeInput]);
+
+  useEffect(() => {
+    if (pendingItemToAdd) {
+      localStorage.setItem('smartcart_pending_item', JSON.stringify(pendingItemToAdd));
+    } else {
+      localStorage.removeItem('smartcart_pending_item');
+    }
+  }, [pendingItemToAdd]);
+
+  useEffect(() => {
+    localStorage.setItem('smartcart_pending_quantity', pendingQuantity.toString());
+  }, [pendingQuantity]);
+
+  useEffect(() => {
+    localStorage.setItem('smartcart_pending_unit', pendingUnit);
+  }, [pendingUnit]);
+
+  useEffect(() => {
+    localStorage.setItem('smartcart_quantity_input_str', quantityInputStr);
+  }, [quantityInputStr]);
+
+  useEffect(() => {
+    localStorage.setItem('smartcart_is_quantity_modified', isQuantityModified ? 'true' : 'false');
+  }, [isQuantityModified]);
+
+  // Synchronize active input keypad focus states
+  useEffect(() => {
+    if (activeInput) {
+      localStorage.setItem('smartcart_active_input_id', activeInput.id);
+      localStorage.setItem('smartcart_active_input_label', activeInput.label);
+      localStorage.setItem('smartcart_active_input_type', activeInput.type);
+    } else {
+      localStorage.removeItem('smartcart_active_input_id');
+      localStorage.removeItem('smartcart_active_input_label');
+      localStorage.removeItem('smartcart_active_input_type');
+    }
+  }, [activeInput]);
+
+  // Restore the active keypad context and handlers on reload
+  useEffect(() => {
+    const savedId = localStorage.getItem('smartcart_active_input_id');
+    const savedLabel = localStorage.getItem('smartcart_active_input_label');
+    const savedType = localStorage.getItem('smartcart_active_input_type') as 'text' | 'numeric' || 'text';
+    
+    if (savedId) {
+      let val = '';
+      let setValueFn: ((val: string) => void) | null = null;
+      
+      if (savedId === 'storeName' || savedId === 'storeNameCart') {
+        val = storeName;
+        setValueFn = setStoreName;
+      } else if (savedId === 'itemName') {
+        val = formData.name;
+        setValueFn = (v) => setFormData(p => ({ ...p, name: v }));
+      } else if (savedId === 'itemPrice') {
+        val = formData.price;
+        setValueFn = (v) => setFormData(p => ({ ...p, price: v }));
+      } else if (savedId === 'storePopup') {
+        val = storeInput;
+        setValueFn = setStoreInput;
+      } else if (savedId === 'activationCode') {
+        val = activationCode;
+        setValueFn = setActivationCode;
+      } else if (savedId === 'editItemName' && editingItem) {
+        val = editingItem.name;
+        setValueFn = (v) => setEditingItem(prev => prev ? { ...prev, name: v } : null);
+      } else if (savedId === 'editItemPrice' && editingItem) {
+        val = editingItem.price.toString();
+        setValueFn = (v) => setEditingItem(prev => prev ? { ...prev, price: parseFloat(v) || 0 } : null);
+      } else if (savedId === 'editItemQty' && editingItem) {
+        val = editingItem.quantity.toString();
+        setValueFn = (v) => setEditingItem(prev => prev ? { ...prev, quantity: parseFloat(v) || 1 } : null);
+      } else if (savedId === 'settingsBudget') {
+        val = settings.budget.toString();
+        setValueFn = (v) => setSettings(prev => ({ ...prev, budget: parseFloat(v) || 0 }));
+      }
+
+      if (setValueFn) {
+        setActiveInput({
+          id: savedId,
+          label: savedLabel || '',
+          type: savedType,
+          value: val,
+          setValue: setValueFn
+        });
+      }
+    }
+  }, []);
+
+  // --- SMART PRODUCT SUGGESTIONS ENGINE ---
+  const allProductNames = useMemo(() => {
+    const namesSet = new Set<string>();
+
+    const defaultSuggestions = [
+      'Bread', 'Milk', 'Eggs', 'Butter', 'Cheese', 'Apples', 'Bananas', 'Tomatoes', 
+      'Potatoes', 'Onions', 'Chicken', 'Rice', 'Pasta', 'Coffee', 'Tea', 'Water',
+      'Хлеб', 'Молоко', 'Яйца', 'Масло', 'Сыр', 'Яблоки', 'Бананы', 'Помидоры',
+      'Картофель', 'Лук', 'Курица', 'Рис', 'Макароны', 'Кофе', 'Чай', 'Вода',
+      'Brot', 'Milch', 'Eier', 'Butter', 'Käse', 'Äpfel', 'Bananen', 'Tomaten',
+      'Kartoffeln', 'Zwiebeln', 'Hähnchen', 'Reis', 'Nudeln', 'Kaffee', 'Tee', 'Wasser',
+      'Pan', 'Leche', 'Huevos', 'Mantequilla', 'Queso', 'Manzanas', 'Plátanos', 'Tomates',
+      'Patatas', 'Cebollas', 'Pollo', 'Arroz', 'Pasta', 'Café', 'Té', 'Agua'
+    ];
+    defaultSuggestions.forEach(name => namesSet.add(name));
+
+    // Dynamic items in current cart
+    items.forEach(item => {
+      if (item.name && item.name.trim()) {
+        namesSet.add(item.name.trim());
+      }
+    });
+
+    // Dynamic past items in shopping history
+    trips.forEach(trip => {
+      if (trip.items) {
+        trip.items.forEach(item => {
+          if (item.name && item.name.trim()) {
+            namesSet.add(item.name.trim());
+          }
+        });
+      }
+    });
+
+    return Array.from(namesSet);
+  }, [items, trips]);
+
+  const suggestedHints = useMemo(() => {
+    if (!activeInput || !['itemName', 'editItemName'].includes(activeInput.id)) {
+      return [];
+    }
+    const query = (activeInput.value || '').trim().toLowerCase();
+    if (!query) {
+      return [];
+    }
+    return allProductNames
+      .filter(name => {
+        const lowerName = name.toLowerCase();
+        return lowerName.startsWith(query) && lowerName !== query;
+      })
+      .slice(0, 5);
+  }, [activeInput, activeInput?.value, allProductNames]);
+
+  const handleSelectHint = (hint: string) => {
+    if (!activeInput) return;
+    triggerHaptic(20);
+    activeInput.setValue(hint);
+    setActiveInput(prev => prev ? { ...prev, value: hint } : null);
+  };
 
   const t = translations[language] || translations.en;
 
@@ -693,68 +893,101 @@ export default function App() {
       
       {/* HEADER SECTION - SWISS / CREAM DESIGN STYLE */}
       <header className="bg-[#FAF8F5] border-b border-[#E6DEC9]/60 sticky top-0 z-30 px-4">
-        <div className="max-w-4xl mx-auto py-4 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto py-4 flex flex-col gap-3.5">
           
-          <div className="flex items-center gap-3">
-            {/* Header Swapping back-to-shopping Button (Screenshot 5) */}
-            {activeTab !== 'scan' ? (
-              <button
-                onClick={() => {
-                  setActiveTab('scan');
-                  triggerHaptic(20);
-                }}
-                className="border border-[#E6DEC9]/85 text-[#E50014] bg-white rounded-full px-4 py-1.5 text-xs font-black flex items-center gap-1.5 hover:bg-[#FAF9F6] transition-colors cursor-pointer shadow-xs"
-              >
-                <Home className="w-3.5 h-3.5" />
-                {t.common.home.toUpperCase()}
-              </button>
-            ) : (
-              <div className="flex items-center gap-3">
-                {/* Red Swiss style icon rectangle logo */}
-                <div className="w-11 h-11 rounded-2xl bg-[#E50014] text-white flex items-center justify-center shadow-md relative">
-                  <ShoppingCart className="w-5.5 h-5.5 flex-shrink-0" />
-                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#FAF8F5] rounded-full"></span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-display font-black text-xl tracking-tight text-[#1A1513] leading-none">SmartCart</span>
-                    {settings.isPremium && (
-                      <span className="text-[8.5px] font-black text-white uppercase bg-[#E50014] px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-                        👑 PLUS
-                      </span>
-                    )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* Header Swapping back-to-shopping Button (Screenshot 5) */}
+              {activeTab !== 'scan' ? (
+                <button
+                  onClick={() => {
+                    setActiveTab('scan');
+                    triggerHaptic(20);
+                  }}
+                  className="border border-[#E6DEC9]/85 text-[#E50014] bg-white rounded-full px-4 py-1.5 text-xs font-black flex items-center gap-1.5 hover:bg-[#FAF9F6] transition-colors cursor-pointer shadow-xs"
+                >
+                  <Home className="w-3.5 h-3.5" />
+                  {t.common.home.toUpperCase()}
+                </button>
+              ) : (
+                <div className="flex items-center gap-3">
+                  {/* Red Swiss style icon rectangle logo */}
+                  <div className="w-11 h-11 rounded-2xl bg-[#E50014] text-white flex items-center justify-center shadow-md relative">
+                    <ShoppingCart className="w-5.5 h-5.5 flex-shrink-0" />
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#FAF8F5] rounded-full"></span>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-display font-black text-xl tracking-tight text-[#1A1513] leading-none">SmartCart</span>
+                      {settings.isPremium && (
+                        <span className="text-[8.5px] font-black text-white uppercase bg-[#E50014] px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                          👑 PLUS
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
+              )}
+
+              {/* Language Switch pill (Screenshot 4) - Exact design from user screenshot */}
+              <div className="relative inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#FAF8F5] border border-[#E6DEC9]/60 rounded-xl shadow-3xs hover:bg-[#FFF0F3] transition-all">
+                <Globe className="w-3.5 h-3.5 text-[#E57373]" />
+                <span className="text-[10px] font-black text-[#5C504F] uppercase tracking-wide">{language}</span>
+                <select 
+                  value={language}
+                  onChange={(e) => {
+                    setLanguage(e.target.value as Language);
+                    triggerHaptic(25);
+                  }}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                >
+                  <option value="en">EN</option>
+                  <option value="de">DE</option>
+                  <option value="es">ES</option>
+                  <option value="ru">RU</option>
+                </select>
               </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {/* Language Switch pill (Screenshot 4) - Exact design from user screenshot */}
-            <div className="relative inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#FFC9C9]/60 rounded-lg shadow-2xs hover:bg-[#FFF0F3] transition-all">
-              <Globe className="w-3.5 h-3.5 text-[#E57373]" />
-              <span className="text-[10px] font-black text-[#5C504F] uppercase tracking-wide">{language}</span>
-              <select 
-                value={language}
-                onChange={(e) => {
-                  setLanguage(e.target.value as Language);
-                  triggerHaptic(25);
-                }}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              >
-                <option value="en">EN</option>
-                <option value="de">DE</option>
-                <option value="es">ES</option>
-                <option value="ru">RU</option>
-              </select>
             </div>
 
-            {/* Wallet / Budget state icon card (Screenshot 4) */}
-            <div className="bg-[#E8F5E9] border border-[#C8E6C9] font-extrabold text-xs text-[#2E7D32] px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs shrink-0 select-none">
-              <Wallet className="w-4 h-4 text-[#2E7D32]" />
-              <span>{settings.budget.toFixed(0)}</span>
+            <div className="flex items-center gap-2.5">
+              {/* Wallet / Budget state icon card (Screenshot 4) */}
+              <div className="bg-[#E8F5E9] border border-[#C8E6C9] font-extrabold text-xs text-[#2E7D32] px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs shrink-0 select-none">
+                <Wallet className="w-4 h-4 text-[#2E7D32]" />
+                <span>{settings.budget.toFixed(0)}</span>
+              </div>
             </div>
           </div>
+
+          {/* BUDGET PROGRESS TRACKER - EXACTLY AS IN SCREENSHOT */}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex justify-between items-end">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[#9C8F75]">
+                {language === 'ru' ? 'СУММА БЮДЖЕТА' : 
+                 language === 'de' ? 'BUDGET-PROGRESS' : 
+                 language === 'es' ? 'PROGRESO DEL PRESUPUESTO' : 'BUDGET PROGRESS'}
+              </span>
+              <span className="text-[11px] font-black uppercase tracking-wide text-[#9C8F75] flex items-center gap-0.5">
+                <span className="text-[#E50014] text-sm font-black">{Math.round(budgetPercentage)}%</span>{' '}
+                {language === 'ru' ? 'ИСПОЛЬЗОВАНО' : 
+                 language === 'de' ? 'VERBRAUCHT' : 
+                 language === 'es' ? 'USADO' : 'USED'}
+              </span>
+            </div>
+
+            <div className="h-2.5 w-full bg-[#EFECE0] rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-[#E50014] rounded-full transition-all duration-300"
+                style={{ width: `${budgetPercentage}%` }}
+              />
+            </div>
+
+            <div className="flex justify-end">
+              <div className="bg-[#FFF2F4] border border-[#FFC9C9] px-3 py-1 rounded-xl flex items-center justify-center font-mono text-[11.5px] font-black text-[#E50014] shadow-3xs select-none">
+                {Math.ceil(formattedCartTotal)} <span className="mx-1.5 text-[#9C8F75] font-sans font-bold">/</span> {settings.budget.toFixed(0)}
+              </div>
+            </div>
+          </div>
+
         </div>
       </header>
 
@@ -1108,8 +1341,8 @@ export default function App() {
               className="space-y-6"
             >
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div className="space-y-1">
-                  <h2 className="text-2xl font-display font-black text-[#1A1513] tracking-tight">
+                <div className="space-y-1 block">
+                  <h2 className="text-xs font-black uppercase tracking-wider text-[#805B3A]">
                     {language === 'ru' ? 'Статистика расходов' : 
                      language === 'de' ? 'Ausgabenstatistik' : 
                      language === 'es' ? 'Estadísticas de gastos' : 'Spending Statistics'}
@@ -1284,13 +1517,20 @@ export default function App() {
                 </h3>
                 <div className="relative w-full">
                   <input
-                    type="number"
-                    min="5"
+                    type="text"
+                    inputMode="none"
                     value={settings.budget}
                     onChange={(e) => {
                       const val = parseFloat(e.target.value) || 0;
                       setSettings(prev => ({ ...prev, budget: val }));
                     }}
+                    onFocus={() => registerActiveInput(
+                      'settingsBudget',
+                      t.settings.budget,
+                      'numeric',
+                      settings.budget.toString(),
+                      (val) => setSettings(prev => ({ ...prev, budget: parseFloat(val) || 0 }))
+                    )}
                     className="w-full text-left bg-[#FAF8F5] border border-[#E6DEC9] focus:ring-2 focus:ring-[#E50014]/15 focus:outline-none rounded-2xl px-4 py-3 text-sm font-semibold text-[#1A1513]"
                   />
                 </div>
@@ -2006,7 +2246,7 @@ export default function App() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-[480px] bg-white rounded-[32px] p-6.5 shadow-2xl border border-[#E6DEC9] space-y-4.5"
+              className="w-full max-w-md bg-white rounded-[32px] p-6 shadow-2xl border border-[#E6DEC9] space-y-4"
             >
               <div className="text-center space-y-1">
                 <h3 className="text-lg font-display font-black text-[#1A1513] uppercase tracking-tight">
@@ -2216,6 +2456,30 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
+              {/* SMART HINTS DRAWER/ROW FOR PRODUCT NAMES */}
+              {suggestedHints.length > 0 && (
+                <div className="flex items-center gap-1.5 px-6 py-2.5 bg-[#FAF3E0]/70 border-b border-[#E6DEC9]/40 overflow-x-auto scrollbar-none shrink-0">
+                  <span className="text-[9.5px] font-black uppercase tracking-wider text-[#8C7A5C] shrink-0 mr-1 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-[#E50014]" />
+                    {language === 'ru' ? 'ПОДСКАЗКИ:' : 
+                     language === 'de' ? 'HINWEISE:' : 
+                     language === 'es' ? 'SUGERENCIAS:' : 'HINTS:'}
+                  </span>
+                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                    {suggestedHints.map((hint, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleSelectHint(hint)}
+                        className="bg-white hover:bg-[#FAF8F5] active:scale-95 border border-[#E6DEC9] text-[#1A1513] text-[11px] font-black px-3 py-1 rounded-full shadow-3xs cursor-pointer whitespace-nowrap transition-all flex items-center gap-1 shrink-0"
+                      >
+                        {hint}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Main Key Grid Layout */}
               <div className="p-4 bg-[#FDFCF9]/95 space-y-2">
