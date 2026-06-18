@@ -294,6 +294,9 @@ export default function App() {
     currentValue: string,
     setValueFn: (val: string) => void
   ) => {
+    if (['itemName', 'editItemName', 'storeName', 'storeNameCart', 'storePopup'].includes(id)) {
+      setCurrentKeyboardLang('latin');
+    }
     setActiveInput({
       id,
       label,
@@ -2212,22 +2215,22 @@ export default function App() {
               initial={{ scale: 0.96, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.96, opacity: 0 }}
-              className="relative w-full max-w-[330px] bg-[#FAF9F6] border border-[#E6DEC9] shadow-2xl flex flex-col select-none rounded-[32px] overflow-hidden z-20"
+              className="relative w-full max-w-[480px] bg-[#FAF9F6] border border-[#E6DEC9] shadow-2xl flex flex-col select-none rounded-[32px] overflow-hidden z-20"
             >
               {/* Top Keyboard Bar for selection display */}
-              <div className="flex items-center justify-between px-4.5 py-2.5 border-b border-[#E6DEC9]/40 bg-white/70">
-                <div className="flex flex-col min-w-0 flex-1 pr-2">
-                  <span className="text-[9px] uppercase font-bold tracking-wider text-[#A19885]">
+              <div className="flex items-center justify-between px-6 py-4.5 border-b border-[#E6DEC9]/40 bg-white/70">
+                <div className="flex flex-col min-w-0 flex-1 pr-3">
+                  <span className="text-[12px] uppercase font-semibold tracking-wider text-[#A19885]">
                     {activeInput.label}
                   </span>
-                  <span className="text-xs font-black text-[#1A1513] font-mono tracking-tight truncate">
+                  <span className="text-base sm:text-lg font-black text-[#1A1513] font-mono tracking-tight truncate">
                     {activeInput.value || '...'}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-3 shrink-0">
                   {/* Language Toggler block under text mode */}
-                  {activeInput.type === 'text' && (
+                  {activeInput.type === 'text' && !['itemName', 'editItemName', 'storeName', 'storeNameCart', 'storePopup'].includes(activeInput.id) && (
                     <div className="flex bg-[#F2ECE0] p-0.5 rounded-lg border border-[#E6DEC9]/50">
                       <button
                         type="button"
@@ -2235,7 +2238,7 @@ export default function App() {
                           setCurrentKeyboardLang('latin');
                           triggerHaptic(15);
                         }}
-                        className={`px-1.5 py-0.5 text-[8px] font-black uppercase rounded-md transition-all ${
+                        className={`px-2.5 py-1 text-[11px] font-black uppercase rounded-md transition-all ${
                           currentKeyboardLang === 'latin'
                             ? 'bg-white text-[#1A1513] shadow-xs'
                             : 'text-[#A19885] hover:text-[#786D58]'
@@ -2249,7 +2252,7 @@ export default function App() {
                           setCurrentKeyboardLang('cyrillic');
                           triggerHaptic(15);
                         }}
-                        className={`px-1.5 py-0.5 text-[8px] font-black uppercase rounded-md transition-all ${
+                        className={`px-2.5 py-1 text-[11px] font-black uppercase rounded-md transition-all ${
                           currentKeyboardLang === 'cyrillic'
                             ? 'bg-white text-[#1A1513] shadow-xs'
                             : 'text-[#A19885] hover:text-[#786D58]'
@@ -2267,7 +2270,7 @@ export default function App() {
                       setActiveInput(null);
                       triggerHaptic(10);
                     }}
-                    className="bg-[#1A1513] hover:bg-stone-850 text-white px-3 py-1 rounded-lg text-[9px] font-bold uppercase transition-colors cursor-pointer border-none"
+                    className="bg-[#1A1513] hover:bg-stone-850 text-white px-5 py-2 rounded-lg text-[12px] font-bold uppercase transition-colors cursor-pointer border-none shadow-xs"
                   >
                     OK
                   </button>
@@ -2275,18 +2278,18 @@ export default function App() {
               </div>
 
               {/* Main Key Grid Layout */}
-              <div className="p-2.5 bg-[#FDFCF9]/95 space-y-1">
+              <div className="p-4 bg-[#FDFCF9]/95 space-y-2">
                 {activeInput.type === 'numeric' ? (
                   // Numeric key grid layout
-                  <div className="grid grid-cols-3 gap-1.5 max-w-[240px] mx-auto">
+                  <div className="grid grid-cols-3 gap-2 py-2 max-w-[320px] mx-auto">
                     {numericKeys.map((row, rIdx) => (
-                      <div key={rIdx} className="col-span-3 grid grid-cols-3 gap-1.5">
+                      <div key={rIdx} className="col-span-3 grid grid-cols-3 gap-2">
                         {row.map((k) => (
                           <button
                             key={k}
                             type="button"
                             onClick={() => handleKeyPress(k)}
-                            className={`h-10 rounded-lg text-sm font-black flex items-center justify-center transition-all cursor-pointer shadow-3xs border ${
+                            className={`h-12 rounded-xl text-base font-black flex items-center justify-center transition-all cursor-pointer shadow-3xs border ${
                               k === '⌫'
                                 ? 'bg-[#FFF0F3] border-[#FFC9C9] text-[#E50014] hover:bg-[#FFE5EB]'
                                 : 'bg-white hover:bg-stone-50 text-[#1A1513] border-[#E6DEC9]/70'
@@ -2300,15 +2303,15 @@ export default function App() {
                   </div>
                 ) : (
                   // Alphabet text keys layout
-                  <div className="space-y-1">
+                  <div className="space-y-1.5 py-1">
                     {(currentKeyboardLang === 'latin' ? latinKeys : cyrillicKeys).map((row, rIdx) => (
-                      <div key={rIdx} className="flex justify-center gap-0.5">
+                      <div key={rIdx} className="flex justify-center gap-1">
                         {row.map((k) => (
                           <button
                             key={k}
                             type="button"
                             onClick={() => handleKeyPress(k)}
-                            className="flex-1 max-w-[26px] h-[28px] bg-white border border-[#E6DEC9]/80 text-[10px] font-extrabold text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform"
+                            className="flex-1 max-w-[38px] h-[38px] bg-white border border-[#E6DEC9]/80 text-[13px] font-extrabold text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform"
                           >
                             {k}
                           </button>
@@ -2317,7 +2320,7 @@ export default function App() {
                     ))}
 
                     {/* Special bottom control keys block: Shift, Space, Backspace */}
-                    <div className="flex justify-center gap-1.5 max-w-sm mx-auto pt-1">
+                    <div className="flex justify-center gap-2 max-w-md mx-auto pt-2">
                       {/* Shift button */}
                       <button
                         type="button"
@@ -2325,7 +2328,7 @@ export default function App() {
                           setIsShiftActive(!isShiftActive);
                           triggerHaptic(15);
                         }}
-                        className={`px-1.5 h-[28px] rounded-md border text-[8px] font-black uppercase transition-all flex items-center justify-center gap-0.5 cursor-pointer select-none ${
+                        className={`px-3.5 h-[38px] rounded-md border text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1 cursor-pointer select-none ${
                           isShiftActive
                             ? 'bg-[#E50014] border-transparent text-white shadow-3xs'
                             : 'bg-white border-[#E6DEC9]/80 text-[#786D58] hover:bg-stone-50'
@@ -2338,7 +2341,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => handleKeyPress('Space')}
-                        className="flex-1 h-[28px] bg-white border border-[#E6DEC9]/80 text-[8px] font-bold text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform"
+                        className="flex-1 h-[38px] bg-white border border-[#E6DEC9]/80 text-[10px] font-bold text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform"
                       >
                         SPACE
                       </button>
@@ -2347,7 +2350,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => handleKeyPress('⌫')}
-                        className="px-1.5 h-[28px] bg-[#FFF0F3] border border-[#FFC9C9] text-[8px] font-black text-[#E50014] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-[#FFE5EB] active:scale-95 transition-transform"
+                        className="px-3.5 h-[38px] bg-[#FFF0F3] border border-[#FFC9C9] text-[10px] font-black text-[#E50014] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-[#FFE5EB] active:scale-95 transition-transform"
                       >
                         ⌫ DEL
                       </button>
