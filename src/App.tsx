@@ -61,7 +61,9 @@ export default function App() {
     return (localStorage.getItem('smartcart_language') as Language) || 'en';
   });
 
-  const [activeTab, setActiveTab] = useState<'scan' | 'cart' | 'stats' | 'settings'>('scan');
+  const [activeTab, setActiveTab] = useState<'scan' | 'cart' | 'stats' | 'settings'>(() => {
+    return (localStorage.getItem('smartcart_active_tab') as 'scan' | 'cart' | 'stats' | 'settings') || 'scan';
+  });
 
   const [items, setItems] = useState<CartItem[]>(() => {
     const saved = localStorage.getItem('smartcart_cart_items');
@@ -155,6 +157,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('smartcart_store_name', storeName);
   }, [storeName]);
+
+  useEffect(() => {
+    localStorage.setItem('smartcart_active_tab', activeTab);
+  }, [activeTab]);
 
   const t = translations[language] || translations.en;
 
@@ -280,7 +286,7 @@ export default function App() {
           price: ''
         });
         setPendingItemToAdd(null);
-        nameInputRef.current?.focus();
+        setActiveTab('cart');
       }, 700);
 
     }, 450);
@@ -304,6 +310,78 @@ export default function App() {
       value: currentValue,
       setValue: setValueFn
     });
+  };
+
+  const handleProductFieldFocus = (fieldType: 'name' | 'price') => {
+    if (!storeName.trim()) {
+      registerActiveInput(
+        'storeName',
+        language === 'ru' ? 'МАГАЗИН (НАЗВАНИЕ)' : 'STORE NAME',
+        'text',
+        storeName,
+        setStoreName
+      );
+    } else {
+      if (fieldType === 'name') {
+        registerActiveInput(
+          'itemName',
+          t.scan.productName,
+          'text',
+          formData.name,
+          (val) => setFormData(prev => ({ ...prev, name: val }))
+        );
+      } else {
+        registerActiveInput(
+          'itemPrice',
+          t.scan.price,
+          'numeric',
+          formData.price,
+          (val) => setFormData(prev => ({ ...prev, price: val }))
+        );
+      }
+    }
+  };
+
+  const handleKeyboardOkSubmit = () => {
+    if (!activeInput) return;
+    const currentId = activeInput.id;
+    setActiveInput(null);
+    triggerHaptic(10);
+
+    if (currentId === 'storeName') {
+      setTimeout(() => {
+        registerActiveInput(
+          'itemName',
+          t.scan.productName,
+          'text',
+          formData.name,
+          (val) => setFormData(prev => ({ ...prev, name: val }))
+        );
+      }, 150);
+    } else if (currentId === 'itemName') {
+      setTimeout(() => {
+        registerActiveInput(
+          'itemPrice',
+          t.scan.price,
+          'numeric',
+          formData.price,
+          (val) => setFormData(prev => ({ ...prev, price: val }))
+        );
+      }, 150);
+    } else if (currentId === 'itemPrice') {
+      setTimeout(() => {
+        const priceVal = parseFloat(formData.price) || 0.00;
+        setPendingItemToAdd({
+          name: formData.name.trim(),
+          price: priceVal
+        });
+        setPendingQuantity(1);
+        setQuantityInputStr('1');
+        setIsQuantityModified(false);
+        setPendingUnit('each');
+        triggerHaptic(30);
+      }, 150);
+    }
   };
 
   const handleKeyPress = (val: string) => {
@@ -389,7 +467,7 @@ export default function App() {
     };
 
     setTrips(prev => [newTrip, ...prev]);
-    setShowCheckoutSuccess(true);
+    setActiveTab('stats');
     setItems([]);
     setStoreName('');
   };
@@ -723,28 +801,9 @@ export default function App() {
                 </div>
               )}
 
-              {/* STORE NAME FIELD CARD (User Request: must be field on main page) */}
-              <div className="bg-white rounded-[24px] p-5 border border-[#E6DEC9] shadow-xs space-y-2">
-                <label className="text-[10px] font-bold text-[#1A1513] uppercase tracking-wider pl-1 block flex items-center gap-1.5">
-                  <Store className="w-3.5 h-3.5 text-[#E50014]" />
-                  {language === 'ru' ? 'МАГАЗИН (НАЗВАНИЕ)' : 
-                   language === 'de' ? 'GESCHÄFTSNAME' : 
-                   language === 'es' ? 'NOMBRE DE LA TIENDA' : 'STORE NAME'}
-                </label>
-                <input
-                  type="text"
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  onFocus={() => registerActiveInput('storeName', language === 'ru' ? 'МАГАЗИН (НАЗВАНИЕ)' : 'STORE NAME', 'text', storeName, setStoreName)}
-                  inputMode="none"
-                  placeholder={language === 'ru' ? 'например: Lidl, Спар, Пятёрочка...' : 'e.g. Lidl, Spar, Costco...'}
-                  className="w-full bg-[#f9f6f0] border border-[#E6DEC9] focus:ring-2 focus:ring-[#E50014]/15 focus:border-[#E50014] focus:outline-none rounded-2xl px-4 py-3.5 text-sm font-semibold text-[#1A1513] placeholder-[#A19885]/70"
-                />
-              </div>
-
               {/* PRIMARY VISUAL FORM CONTROL CARD (Screenshot 1) */}
               <div className="bg-white rounded-[32px] p-6.5 border border-[#E6DEC9] shadow-xs">
-                <form onSubmit={handleAddSubmit} className="space-y-4">
+                <div className="space-y-4">
                   {/* Name field card style */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-[#1A1513] uppercase tracking-wider pl-1 block">
@@ -753,10 +812,9 @@ export default function App() {
                     <input
                       ref={nameInputRef}
                       type="text"
-                      required
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      onFocus={() => registerActiveInput('itemName', t.scan.productName, 'text', formData.name, (val) => setFormData(prev => ({ ...prev, name: val })))}
+                      onFocus={() => handleProductFieldFocus('name')}
                       inputMode="none"
                       placeholder={language === 'ru' ? 'например: Яблоки, Хлеб, Сыр...' : 
                                    language === 'de' ? 'z.B. Brot, Milch, Äpfel...' : 
@@ -772,50 +830,15 @@ export default function App() {
                     </label>
                     <input
                       type="text"
-                      required
                       value={formData.price}
                       onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                      onFocus={() => registerActiveInput('itemPrice', t.scan.price, 'numeric', formData.price, (val) => setFormData(prev => ({ ...prev, price: val })))}
+                      onFocus={() => handleProductFieldFocus('price')}
                       inputMode="none"
                       placeholder="0.00"
                       className="w-full bg-[#f9f6f0] border border-[#E6DEC9] focus:ring-2 focus:ring-[#E50014]/15 focus:border-[#E50014] focus:outline-none rounded-2xl px-4 py-3.5 text-sm font-semibold transition-all placeholder-[#A19885] text-[#1A1513]"
                     />
                   </div>
-
-                  {/* Heavy Red Add Item Button */}
-                  <button
-                    type="submit"
-                    disabled={isAdding}
-                    className={`w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer shadow-md ${
-                      addStatus === 'scanning'
-                        ? 'bg-yellow-500 text-white'
-                        : addStatus === 'success'
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-[#E50014] text-white hover:bg-red-700'
-                    }`}
-                  >
-                    {addStatus === 'scanning' ? (
-                      <>
-                        <RefreshCw className="w-5 h-5 animate-spin" />
-                        {t.scan.scanning}
-                      </>
-                    ) : addStatus === 'success' ? (
-                      <>
-                        <Check className="w-5 h-5" />
-                        {t.scan.found}
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-5 h-5 font-black" />
-                        <span>
-                          {language === 'ru' ? 'Добавить товар' : 
-                           language === 'de' ? 'Artikel hinzufügen' : 
-                           language === 'es' ? 'Añadir artículo' : 'Add Item'}
-                        </span>
-                      </>
-                    )}
-                  </button>
-                </form>
+                </div>
               </div>
 
               {/* INLINE ACTION CART PILL (UNPINNED) */}
@@ -1802,47 +1825,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 5. Checkout Success Modal Feedback */}
-      <AnimatePresence>
-        {showCheckoutSuccess && (
-          <div className="fixed inset-0 bg-[#1A1513]/60 backdrop-blur-2xs z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md bg-white rounded-[32px] p-6 shadow-2xl border border-[#E6DEC9] space-y-4 text-center"
-            >
-              <div className="w-16 h-16 bg-[#E8F5E9] text-emerald-600 flex items-center justify-center rounded-3xl mx-auto border border-emerald-100 shadow-sm shadow-emerald-500/10">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="text-lg font-display font-black text-[#1A1513] uppercase">
-                  {t.cart.checkoutSuccess}
-                </h3>
-                <p className="text-xs text-[#805B3A] leading-normal font-bold">
-                  {t.cart.checkoutSuccessSub}
-                </p>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCheckoutSuccess(false);
-                    setActiveTab('stats');
-                    triggerHaptic(20);
-                  }}
-                  className="w-full py-4 bg-[#E50014] hover:bg-red-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-97 cursor-pointer"
-                >
-                  📋 Check Statistics
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* 6. EXPANDED TRIP DETAILS DRAWER SHEET (Screenshot 6) */}
       <AnimatePresence>
         {selectedTrip && (
@@ -2024,22 +2006,22 @@ export default function App() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-sm bg-white rounded-[32px] p-6 shadow-2xl border border-[#E6DEC9] space-y-4"
+              className="w-full max-w-[480px] bg-white rounded-[32px] p-6.5 shadow-2xl border border-[#E6DEC9] space-y-4.5"
             >
-              <div className="text-center space-y-0.5">
-                <h3 className="text-base font-display font-black text-[#1A1513] uppercase tracking-tight">
+              <div className="text-center space-y-1">
+                <h3 className="text-lg font-display font-black text-[#1A1513] uppercase tracking-tight">
                   {language === 'ru' ? 'Выберите количество' : 
                    language === 'de' ? 'Menge wählen' : 
                    language === 'es' ? 'Seleccionar cantidad' : 'Select Quantity'}
                 </h3>
-                <p className="text-[#805B3A] text-[11px] font-black uppercase">
+                <p className="text-[#805B3A] text-[12px] font-black uppercase">
                   {pendingItemToAdd.name} — {pendingItemToAdd.price.toFixed(2)}
                 </p>
               </div>
 
               {/* Quantity display & quick step counter */}
-              <div className="space-y-3.5">
-                <div className="flex items-center justify-between gap-3 bg-[#F9F6F0] border border-[#E6DEC9] rounded-2xl p-2 px-3.5">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-4 bg-[#F9F6F0] border border-[#E6DEC9] rounded-2xl p-2 px-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -2052,16 +2034,13 @@ export default function App() {
                       setIsQuantityModified(true);
                       triggerHaptic(15);
                     }}
-                    className="w-9 h-9 bg-white border border-[#E6DEC9] text-[#786D58] hover:text-[#1A1513] rounded-xl flex items-center justify-center font-black text-base active:scale-95 transition-transform shrink-0"
+                    className="w-11 h-11 bg-white border border-[#E6DEC9] text-[#786D58] hover:text-[#1A1513] rounded-xl flex items-center justify-center font-black text-xl active:scale-95 transition-transform shrink-0 cursor-pointer"
                   >
                     -
                   </button>
-                  <div className="text-center font-mono">
-                    <span className="text-2xl font-black text-[#1A1513]">
+                  <div className="text-center font-mono py-1">
+                    <span className="text-4xl font-black text-[#1A1513]">
                       {quantityInputStr || '0'}
-                    </span>
-                    <span className="text-xs text-[#A19885] font-sans font-bold ml-1.5 uppercase">
-                      {pendingUnit}
                     </span>
                   </div>
                   <button
@@ -2076,14 +2055,14 @@ export default function App() {
                       setIsQuantityModified(true);
                       triggerHaptic(15);
                     }}
-                    className="w-9 h-9 bg-white border border-[#E6DEC9] text-[#786D58] hover:text-[#1A1513] rounded-xl flex items-center justify-center font-black text-base active:scale-95 transition-transform shrink-0"
+                    className="w-11 h-11 bg-white border border-[#E6DEC9] text-[#786D58] hover:text-[#1A1513] rounded-xl flex items-center justify-center font-black text-xl active:scale-95 transition-transform shrink-0 cursor-pointer"
                   >
                     +
                   </button>
                 </div>
 
                 {/* Micro numeric keyboard inside Quantity Popup */}
-                <div className="grid grid-cols-3 gap-1.5 bg-[#FAF9F6] p-2.5 rounded-2xl border border-[#E6DEC9]/65">
+                <div className="grid grid-cols-3 gap-2.5 bg-[#FAF9F6] p-3.5 rounded-2xl border border-[#E6DEC9]/65">
                   {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'].map((k) => (
                     <button
                       key={k}
@@ -2109,7 +2088,7 @@ export default function App() {
                           }
                         }
                       }}
-                      className={`h-9 rounded-lg text-xs font-black flex items-center justify-center transition-all cursor-pointer shadow-3xs ${
+                      className={`h-11 rounded-xl text-base font-black flex items-center justify-center transition-all cursor-pointer shadow-3xs ${
                         k === '⌫'
                           ? 'bg-[#FFF0F3] text-[#E50014] border border-[#FFC9C9]'
                           : 'bg-white hover:bg-stone-50 text-[#1A1513] border border-[#E6DEC9]/80'
@@ -2121,7 +2100,7 @@ export default function App() {
                 </div>
 
                 {/* Quick select presets for pieces and weights */}
-                <div className="grid grid-cols-6 gap-1 justify-center">
+                <div className="grid grid-cols-6 gap-1.5 justify-center">
                   {[0.5, 0.7, 1, 1.5, 2, 3].map((num) => (
                     <button
                       key={num}
@@ -2130,7 +2109,7 @@ export default function App() {
                         setQuantityInputStr(num.toString());
                         triggerHaptic(20);
                       }}
-                      className={`py-1.5 text-[10px] font-bold rounded-lg border transition-all ${
+                      className={`py-2 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${
                         parseFloat(quantityInputStr) === num
                           ? 'bg-[#E50014] text-white border-transparent font-black shadow-3xs'
                           : 'bg-[#FAF8F5] text-[#786D58] border-[#E6DEC9]/70 hover:bg-stone-50'
@@ -2141,60 +2120,24 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* Unit of measure selectors */}
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingUnit('each');
-                      triggerHaptic(15);
-                      // Auto format to whole number.
-                      setQuantityInputStr(prev => {
-                        const parsed = Math.round(parseFloat(prev) || 1);
-                        return Math.max(1, parsed).toString();
-                      });
-                    }}
-                    className={`py-2 rounded-xl border text-[11px] font-black uppercase tracking-wide transition-all ${
-                      pendingUnit === 'each'
-                        ? 'bg-[#E50014] text-white border-transparent shadow-xs'
-                        : 'bg-[#FAF8F5] border-[#E6DEC9]/60 text-[#786D58]'
-                    }`}
-                  >
-                    {t.common.each}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingUnit('kg');
-                      triggerHaptic(15);
-                    }}
-                    className={`py-2 rounded-xl border text-[11px] font-black uppercase tracking-wide transition-all ${
-                      pendingUnit === 'kg'
-                        ? 'bg-[#E50014] text-white border-transparent shadow-xs'
-                        : 'bg-[#FAF8F5] border-[#E6DEC9]/60 text-[#786D58]'
-                    }`}
-                  >
-                    kg
-                  </button>
-                </div>
               </div>
 
               {/* Lower confirmation and cancellation controls */}
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-2.5 pt-1">
                 <button
                   type="button"
                   onClick={() => {
                     setPendingItemToAdd(null);
                     triggerHaptic(10);
                   }}
-                  className="flex-1 py-3 bg-[#FAF8F5] border border-[#E6DEC9] text-[#786D58] rounded-xl text-xs font-black uppercase transition-colors hover:bg-stone-50"
+                  className="flex-1 py-3 bg-[#FAF8F5] border border-[#E6DEC9] text-[#786D58] rounded-xl text-xs font-black uppercase transition-colors hover:bg-stone-50 cursor-pointer"
                 >
                   {t.common.cancel}
                 </button>
                 <button
                   type="button"
                   onClick={confirmPendingItemAdd}
-                  className="flex-1 py-3 bg-[#E50014] hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase transition-all shadow-xs"
+                  className="flex-1 py-3 bg-[#E50014] hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase transition-all shadow-xs cursor-pointer"
                 >
                   {language === 'ru' ? 'Добавить' : 'Confirm'}
                 </button>
@@ -2266,10 +2209,7 @@ export default function App() {
                   {/* Hide / OK keyboard button */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setActiveInput(null);
-                      triggerHaptic(10);
-                    }}
+                    onClick={handleKeyboardOkSubmit}
                     className="bg-[#1A1513] hover:bg-stone-850 text-white px-5 py-2 rounded-lg text-[12px] font-bold uppercase transition-colors cursor-pointer border-none shadow-xs"
                   >
                     OK
@@ -2289,7 +2229,7 @@ export default function App() {
                             key={k}
                             type="button"
                             onClick={() => handleKeyPress(k)}
-                            className={`h-12 rounded-xl text-base font-black flex items-center justify-center transition-all cursor-pointer shadow-3xs border ${
+                            className={`h-14 rounded-xl text-lg font-black flex items-center justify-center transition-all cursor-pointer shadow-3xs border ${
                               k === '⌫'
                                 ? 'bg-[#FFF0F3] border-[#FFC9C9] text-[#E50014] hover:bg-[#FFE5EB]'
                                 : 'bg-white hover:bg-stone-50 text-[#1A1513] border-[#E6DEC9]/70'
@@ -2311,7 +2251,7 @@ export default function App() {
                             key={k}
                             type="button"
                             onClick={() => handleKeyPress(k)}
-                            className="flex-1 max-w-[38px] h-[38px] bg-white border border-[#E6DEC9]/80 text-[13px] font-extrabold text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform"
+                            className="flex-1 max-w-[42px] h-[43px] bg-white border border-[#E6DEC9]/80 text-[15px] font-extrabold text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform"
                           >
                             {k}
                           </button>
@@ -2328,7 +2268,7 @@ export default function App() {
                           setIsShiftActive(!isShiftActive);
                           triggerHaptic(15);
                         }}
-                        className={`px-3.5 h-[38px] rounded-md border text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1 cursor-pointer select-none ${
+                        className={`px-3.5 h-[43px] rounded-md border text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1 cursor-pointer select-none ${
                           isShiftActive
                             ? 'bg-[#E50014] border-transparent text-white shadow-3xs'
                             : 'bg-white border-[#E6DEC9]/80 text-[#786D58] hover:bg-stone-50'
@@ -2341,7 +2281,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => handleKeyPress('Space')}
-                        className="flex-1 h-[38px] bg-white border border-[#E6DEC9]/80 text-[10px] font-bold text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform"
+                        className="flex-1 h-[43px] bg-white border border-[#E6DEC9]/80 text-[10px] font-bold text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform"
                       >
                         SPACE
                       </button>
@@ -2350,7 +2290,7 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => handleKeyPress('⌫')}
-                        className="px-3.5 h-[38px] bg-[#FFF0F3] border border-[#FFC9C9] text-[10px] font-black text-[#E50014] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-[#FFE5EB] active:scale-95 transition-transform"
+                        className="px-3.5 h-[43px] bg-[#FFF0F3] border border-[#FFC9C9] text-[10px] font-black text-[#E50014] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-[#FFE5EB] active:scale-95 transition-transform"
                       >
                         ⌫ DEL
                       </button>
