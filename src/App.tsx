@@ -162,8 +162,6 @@ export default function App() {
     value: string;
     setValue: (val: string) => void;
   } | null>(null);
-  const [isShiftActive, setIsShiftActive] = useState(false);
-  const [currentKeyboardLang, setCurrentKeyboardLang] = useState<'latin' | 'cyrillic'>('latin');
 
   // Form input ref for re-focusing
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -500,9 +498,6 @@ export default function App() {
     currentValue: string,
     setValueFn: (val: string) => void
   ) => {
-    if (['itemName', 'editItemName', 'storeName', 'storeNameCart', 'storePopup'].includes(id)) {
-      setCurrentKeyboardLang('latin');
-    }
     setActiveInput({
       id,
       label,
@@ -857,29 +852,29 @@ export default function App() {
     triggerHaptic(30);
   };
 
-  const latinKeys = isShiftActive 
-    ? [
-        ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Ü'],
-        ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ö', 'Ä'],
-        ['Z', 'X', 'C', 'V', 'B', 'N', 'M', 'Ñ', 'ß']
-      ]
-    : [
-        ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', 'ü'],
-        ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'ö', 'ä'],
-        ['z', 'x', 'c', 'v', 'b', 'n', 'm', 'ñ', 'ß']
-      ];
+  const englishKeysLayout = [
+    ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+    ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+  ];
 
-  const cyrillicKeys = isShiftActive
-    ? [
-        ['Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х', 'Ъ'],
-        ['Ф', 'Ы', 'В', 'А', 'П', 'Р', 'О', 'Л', 'Д', 'Ж', 'Э'],
-        ['Я', 'Ч', 'С', 'М', 'И', 'Т', 'Ь', 'Б', 'Ю']
-      ]
-    : [
-        ['й', 'ц', 'у', 'к', 'е', 'н', 'г', 'ш', 'щ', 'з', 'х', 'ъ'],
-        ['ф', 'ы', 'в', 'а', 'п', 'р', 'о', 'л', 'д', 'ж', 'э'],
-        ['я', 'ч', 'с', 'м', 'и', 'т', 'ь', 'б', 'ю']
-      ];
+  const germanKeysLayout = [
+    ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 'Ü'],
+    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ö', 'Ä'],
+    ['Z', 'X', 'C', 'V', 'B', 'N', 'M', 'ß']
+  ];
+
+  const spanishKeysLayout = [
+    ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ñ'],
+    ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+  ];
+
+  const russianKeysLayout = [
+    ['Й', 'Ц', 'У', 'К', 'Е', 'Н', 'Г', 'Ш', 'Щ', 'З', 'Х', 'Ъ'],
+    ['Ф', 'Ы', 'В', 'А', 'П', 'Р', 'О', 'Л', 'Д', 'Ж', 'Э'],
+    ['Я', 'Ч', 'С', 'М', 'И', 'Т', 'Ь', 'Б', 'Ю']
+  ];
 
   const numericKeys = [
     ['1', '2', '3'],
@@ -887,6 +882,23 @@ export default function App() {
     ['7', '8', '9'],
     ['.', '0', '⌫']
   ];
+
+  const getActiveKeyboardLayout = () => {
+    if (activeInput?.id === 'activationCode') {
+      return englishKeysLayout;
+    }
+    switch (language) {
+      case 'de':
+        return germanKeysLayout;
+      case 'es':
+        return spanishKeysLayout;
+      case 'ru':
+        return russianKeysLayout;
+      case 'en':
+      default:
+        return englishKeysLayout;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#1A1513] font-sans flex flex-col justify-between selection:bg-[#F2ECE0] pb-[100px] md:pb-6">
@@ -2412,40 +2424,6 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  {/* Language Toggler block under text mode */}
-                  {activeInput.type === 'text' && !['itemName', 'editItemName', 'storeName', 'storeNameCart', 'storePopup'].includes(activeInput.id) && (
-                    <div className="flex bg-[#F2ECE0] p-0.5 rounded-lg border border-[#E6DEC9]/50">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCurrentKeyboardLang('latin');
-                          triggerHaptic(15);
-                        }}
-                        className={`px-2.5 py-1 text-[11px] font-black uppercase rounded-md transition-all ${
-                          currentKeyboardLang === 'latin'
-                            ? 'bg-white text-[#1A1513] shadow-xs'
-                            : 'text-[#A19885] hover:text-[#786D58]'
-                        }`}
-                      >
-                        EN
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCurrentKeyboardLang('cyrillic');
-                          triggerHaptic(15);
-                        }}
-                        className={`px-2.5 py-1 text-[11px] font-black uppercase rounded-md transition-all ${
-                          currentKeyboardLang === 'cyrillic'
-                            ? 'bg-white text-[#1A1513] shadow-xs'
-                            : 'text-[#A19885] hover:text-[#786D58]'
-                        }`}
-                      >
-                        РУ
-                      </button>
-                    </div>
-                  )}
-
                   {/* Hide / OK keyboard button */}
                   <button
                     type="button"
@@ -2508,14 +2486,14 @@ export default function App() {
                 ) : (
                   // Alphabet text keys layout
                   <div className="space-y-1.5 py-1">
-                    {(currentKeyboardLang === 'latin' ? latinKeys : cyrillicKeys).map((row, rIdx) => (
+                    {getActiveKeyboardLayout().map((row, rIdx) => (
                       <div key={rIdx} className="flex justify-center gap-1">
                         {row.map((k) => (
                           <button
                             key={k}
                             type="button"
                             onClick={() => handleKeyPress(k)}
-                            className="flex-1 max-w-[42px] h-[43px] bg-white border border-[#E6DEC9]/80 text-[15px] font-extrabold text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform"
+                            className="flex-1 max-w-[42px] h-[43px] bg-white border border-[#E6DEC9]/80 text-[15px] font-extrabold text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform text-center select-none"
                           >
                             {k}
                           </button>
@@ -2523,40 +2501,28 @@ export default function App() {
                       </div>
                     ))}
 
-                    {/* Special bottom control keys block: Shift, Space, Backspace */}
-                    <div className="flex justify-center gap-2 max-w-md mx-auto pt-2">
-                      {/* Shift button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsShiftActive(!isShiftActive);
-                          triggerHaptic(15);
-                        }}
-                        className={`px-3.5 h-[43px] rounded-md border text-[10px] font-black uppercase transition-all flex items-center justify-center gap-1 cursor-pointer select-none ${
-                          isShiftActive
-                            ? 'bg-[#E50014] border-transparent text-white shadow-3xs'
-                            : 'bg-white border-[#E6DEC9]/80 text-[#786D58] hover:bg-stone-50'
-                        }`}
-                      >
-                        ⇧ SHIFT
-                      </button>
-
+                    {/* Special bottom control keys block: Space, Backspace */}
+                    <div className="flex justify-center gap-2 max-w-md mx-auto pt-2 px-1">
                       {/* Space bar */}
                       <button
                         type="button"
                         onClick={() => handleKeyPress('Space')}
-                        className="flex-1 h-[43px] bg-white border border-[#E6DEC9]/80 text-[10px] font-bold text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform"
+                        className="flex-1 h-[43px] bg-white border border-[#E6DEC9]/80 text-[11px] font-black text-[#1A1513] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-stone-50 active:scale-95 transition-transform"
                       >
-                        SPACE
+                        {language === 'ru' ? 'ПРОБЕЛ' : 
+                         language === 'de' ? 'LEERTASTE' : 
+                         language === 'es' ? 'ESPACIO' : 'SPACE'}
                       </button>
 
                       {/* Backspace button */}
                       <button
                         type="button"
                         onClick={() => handleKeyPress('⌫')}
-                        className="px-3.5 h-[43px] bg-[#FFF0F3] border border-[#FFC9C9] text-[10px] font-black text-[#E50014] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-[#FFE5EB] active:scale-95 transition-transform"
+                        className="px-5 h-[43px] bg-[#FFF0F3] border border-[#FFC9C9] text-[11px] font-black text-[#E50014] rounded-md flex items-center justify-center shadow-3xs cursor-pointer hover:bg-[#FFE5EB] active:scale-95 transition-transform"
                       >
-                        ⌫ DEL
+                        ⌫ {language === 'ru' ? 'УДAЛ' : 
+                            language === 'de' ? 'LÖSCH' : 
+                            language === 'es' ? 'BORRAR' : 'DEL'}
                       </button>
                     </div>
                   </div>
